@@ -120,6 +120,20 @@ docker exec -it atjewel_api npm run db:migrate # -it: pede confirmação digitad
 docker restart atjewel_api          # só depois da migração
 ```
 
+Os tres containers em producao, porque o nome nao e obvio e o do front ja fez um
+`docker restart` falhar com `No such container`:
+
+```
+atjewel_app        front   porta 80
+atjewel_api        back    porta 3000
+atjewel_postgres   banco   porta 5432
+```
+
+**A ordem `git pull` -> `db:migrate` e corrida, sem intervalo.** O back roda
+`start:dev` com bind mount: assim que o pull termina, o watch recompila e o
+codigo novo entra no ar sozinho, procurando colunas que a migracao ainda nao
+criou. Sao segundos de instabilidade, mas e melhor saber.
+
 O `-it` é obrigatório: sem TTY o script aborta em vez de aplicar sem confirmação.
 
 ---
