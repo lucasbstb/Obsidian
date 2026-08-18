@@ -1,3 +1,10 @@
 Configurações Gerais.md
 A.T Jewel/Documentação/
 .obsidian/themes/
+
+# Tabelas de login/senha de ambientes de teste — ficam so nesta maquina.
+Rotinas diárias.md
+
+# Layout de paineis do Obsidian: muda a cada abertura do app e nao registra
+# nada do projeto.
+.obsidian/workspace.json

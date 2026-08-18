@@ -25,13 +25,14 @@ compartilhar da própria página.
 
 ## O que ela cobre
 
-Só os cinco cadastros que a integração usa. Não é documentação da API inteira —
-são 117 rotas em 21 controllers, e documentar tudo produziria algo tão confuso
+Só os cadastros que a integração usa. Não é documentação da API inteira — são
+117 rotas em 21 controllers, e documentar tudo produziria algo tão confuso
 quanto a coleção que ela substitui.
 
 ```
 clientes           vendedoras         fornecedores
 empresas           formas-pagamento
+grupos-estoque     locais-estoque     estoque          <- 18/08
 ```
 
 De cada recurso: as rotas com o escopo exigido, os campos que podem ser enviados
@@ -39,6 +40,22 @@ com tipo, obrigatoriedade e limite, os filtros de listagem, um exemplo de
 resposta e a lista fechada de valores aceitos nos campos de enum.
 
 Tudo extraído dos DTOs e das entidades, não escrito de memória.
+
+### Revisão de 18/08/2026
+
+Entraram os três recursos de estoque e, em TODOS os recursos, o campo `idErp`.
+
+A seção nova que mais importa e a de "Os dois identificadores": o integrador
+precisa entender que `idErp` e identidade e `codigoErp` e atributo. Se ele
+sincronizar pelo codigo e alguem renomear na loja, criamos registro duplicado —
+e ninguem percebe, porque os dois seguem sendo atualizados.
+
+Tambem ficou escrito, com destaque, que **quantidade negativa e valida**. Sem
+isso alguem do outro lado "corrige" o sinal antes de enviar e a contrapartida da
+consignacao se perde.
+
+O arquivo local e `Documents/API A.T. Jewel - Cadastros.md` — 498 para 710
+linhas. O artifact ainda NAO foi regerado com essa revisao.
 
 ---
 
