@@ -35,6 +35,12 @@ empresas           formas-pagamento
 grupos-estoque     locais-estoque     estoque          <- 18/08
 ```
 
+**Produtos continua de fora**, e e a ausencia mais sentida: e o cadastro com
+mais volume (2.505 linhas em producao) e o unico cuja sincronizacao ainda casa
+por `codigo_erp`, a chave mutavel. Tem tambem a assimetria de nome — escreve
+`id_erp_produto` em snake, le `idErp` sem sufixo — que precisa ser decidida
+antes de virar documento.
+
 De cada recurso: as rotas com o escopo exigido, os campos que podem ser enviados
 com tipo, obrigatoriedade e limite, os filtros de listagem, um exemplo de
 resposta e a lista fechada de valores aceitos nos campos de enum.
@@ -55,7 +61,32 @@ isso alguem do outro lado "corrige" o sinal antes de enviar e a contrapartida da
 consignacao se perde.
 
 O arquivo local e `Documents/API A.T. Jewel - Cadastros.md` — 498 para 710
-linhas. O artifact ainda NAO foi regerado com essa revisao.
+linhas.
+
+### Revisao de 19/08/2026 — busca pelo `idErp`
+
+Cada recurso ganhou a rota que faltava para o `idErp` servir de verdade:
+
+```
+GET /<recurso>/:id           pelo nosso UUID       ja existia
+GET /<recurso>/iderp/:idErp  pelo id do ERP        novo
+```
+
+Sem ela o `idErp` so servia para NOS acharmos o registro na sincronizacao — o
+integrador podia mandar o campo, mas nao tinha como perguntar "esse cadastro ja
+chegou?" sem listar tudo e filtrar do lado dele.
+
+**Nenhum escopo novo.** Cada rota usa o `*:read` que ja existia, entao toda
+chave ja emitida alcanca a rota nova sem nenhuma alteracao. Tambem nao houve
+migracao: a coluna veio na 34, em 18/08.
+
+Documentada em nove recursos — os oito do documento mais produtos, que continua
+**fora** dele. Vendas ficou de fora por decisao do Lucas: todas as leituras de
+venda sao JWT-only hoje, e abrir a primeira delas a chave de API e conversa
+separada.
+
+O documento foi de 710 para 756 linhas. **O artifact continua sem ser regerado**
+— esta na versao de 14/08, com cinco recursos e sem `idErp`.
 
 ---
 
