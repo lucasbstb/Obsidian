@@ -8,3 +8,10 @@ Rotinas diárias.md
 # Layout de paineis do Obsidian: muda a cada abertura do app e nao registra
 # nada do projeto.
 .obsidian/workspace.json
+
+# Dumps do banco de PRODUCAO. Nunca vao para o remoto: o arquivo carrega a base
+# inteira — nome de cliente em texto puro, telefone e e-mail cifrados, o
+# historico de compras, tudo. Um repo privado nao muda isso: basta um clone num
+# notebook perdido. Alem do mais, dump passa facil do teto de 100 MB por arquivo
+# do GitHub.
+A.T Jewel/Database BK/
