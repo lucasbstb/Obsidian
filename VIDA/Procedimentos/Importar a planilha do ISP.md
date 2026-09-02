@@ -263,6 +263,75 @@ sendo liberadas. A correção é adicionar `conn.close()` no `finally` das funç
 
 ---
 
+## Registro da execução — 02/09/2026
+
+Carga feita no **`vidadev`** (CET, porta 5433), a partir do
+`Sinistros_ISP_2022-2025.xlsx`.
+
+### Ajustes feitos no script antes de rodar
+
+Se alguém rodar de novo sem estes, o resultado volta a sair errado:
+
+| Onde | Mudança | Por quê |
+|---|---|---|
+| todos os `.py` | `port=5432` → **`5433`**, `database='vida'` → **`'vidadev'`** | o padrão aponta para **produção** |
+| `carregar_dados_planilha()` | `sheet_name` → **`"_BDAcidentes"`** | a aba "Vítimas 2022-2025" não existe na planilha nova |
+| `carregar_dados_planilha()` | acrescentado `df = df.where(pd.notna(df), None)` | sem isso, célula vazia grava a **string literal "NaN"** |
+
+O caminho do arquivo passou a apontar para
+`ENTRADA\dados-para-migracao\Sinistros_ISP_2022-2025.xlsx`.
+
+### Resultado por bloco
+
+| Bloco | Registros | Proporção | Referência anterior | |
+|---|---|---|---|---|
+| **1** — Sinistros | **38.592** | — | 31.069 | ✅ |
+| **2** — Vítimas | **47.760** | 1,24 | 1,24 | ✅ |
+| **3** — Vias | **40.539** | 1,05 | 1,05 | ✅ |
+| **4** — Veículos | *em execução* | esperado 1,23 | 1,23 | ⏳ |
+| **5** — UPDATE colunas | **não rodado** | | | ⚠️ |
+| **6** — UPDATE horário | **não rodado** | | | ⚠️ |
+
+As três proporções batem exatamente com a base anterior — o agrupamento por
+`controle` funcionou.
+
+**Cobertura:** 2022-01-01 a **2025-12-31**. A base anterior parava em 2025-10-30;
+a planilha nova acrescentou oito meses (+7.541 sinistros).
+
+**Vias:** 1.947 sinistros com duas vias = **5%**, o mesmo percentual de registros
+com `second_address` medido na base do Proxmox.
+
+### Validado no bloco 1
+
+Primeiro registro conferido campo a campo:
+
+```
+first_address  | AVENIDA CONEGO VASCONCELOS
+second_address | RUA OLIVEIRA RIBEIRO
+neighborhood   | Bangu
+geom           | 0101000020E610000014B59FB27CBB45C8EF1D39F5F4E136C0
+occurred_at    | 2022-03-11 00:00:00+00
+accident_code  | 00049681
+FKs (nature, severity, lighting…) todas resolvidas
+```
+
+O `geom` vem **pronto** da planilha, em EWKB — sem geocodificação, logo sem o
+risco do "Fortaleza, CE" fixo no código.
+
+A hora em `00:00:00` é esperada: ela só entra no **bloco 6**, que não rodou.
+
+### Pendências desta carga
+
+- [ ] Conferir o bloco 4 ao terminar
+- [ ] Decidir sobre os blocos 5 e 6 — **dump antes**, eles dependem do
+      `accident_code` colidido
+- [ ] Corrigir cor de pele e escolaridade — recuperável via `chave_vitima`
+- [ ] Corrigir o `accident_code` — reprocessar do `controle` completo
+
+> ⚠️ **Enquanto os blocos 5 e 6 não rodarem, todos os sinistros estão à
+> meia-noite.** Qualquer análise por horário, ou qualquer teste de match com
+> janela de ±3h, dá resultado enganoso.
+
 ## ⚠️ O `accident_code` colide — e a vítima é ligada por ele
 
 Descoberto em 02/09/2026, durante a primeira carga completa.
