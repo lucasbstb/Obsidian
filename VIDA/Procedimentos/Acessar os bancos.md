@@ -79,6 +79,41 @@ ele **não funciona**: `getaddrinfo ENOTFOUND vida-rio-dev`.
 └──────────────────────────────────────────────────────────┘
 ```
 
+## A rede é unidirecional
+
+Medido nos dois sentidos em 02/09/2026:
+
+```
+Proxmox (10.29.0.x)  →  CET (10.39.64.110)     ✅  liberado
+CET (10.39.64.110)   →  Proxmox (10.29.0.x)    ❌  bloqueado
+```
+
+A produção **precisa** do primeiro sentido — é assim que a API em `10.29.0.161`
+lê o banco em `10.39.64.110`. Mas o inverso está fechado: testado da máquina do
+CET contra `.161` e `.167`, portas 3000 e 8000, todos com `TcpTestSucceeded:
+False` e ping em timeout.
+
+> **Consequência prática:** a máquina do CET é uma **ilha para conexões de
+> saída**. Nada iniciado por ela alcança o Proxmox. Não adianta tentar abrir a
+> tela do VIDA no navegador de lá para subir planilha — só se chega ao sistema
+> a partir da rede do Proxmox.
+>
+> Todo arquivo que precisa sair daquela máquina sai **pela sessão RDP** ou por
+> mídia física.
+
+### E da máquina do Lucas
+
+```
+→  Proxmox  10.29.0.161 e .167, portas 22, 80, 3000, 8000   ✅
+→  CET      10.39.64.110, qualquer porta                     ❌
+```
+
+Ou seja: **você alcança as aplicações, nunca o banco de produção.** E não
+precisa — a API é a ponte. Subir planilha pela tela de produção grava no banco
+do CET sem que seu navegador toque nele.
+
+---
+
 **Não há rota entre os segmentos.** Diagnosticado em 02/09/2026:
 
 ```bash

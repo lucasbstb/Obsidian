@@ -384,18 +384,62 @@ if(streets.includes('-')) {
 
 ---
 
-## O trabalho concreto na COR
+## FECHAMENTO — o que falta em ISP × COR
 
-| # | Item | Tamanho |
+### ISP: nada
+
+É a fonte primária. Não faz match, sempre insere. Os slides não pedem
+pré-tratamento nem critério para ela.
+
+Único ponto a confirmar: o `controle` da planilha **não é guardado** — o
+`accidentCode` é gerado e o `ispCode` não recebe o `controle`. Perde-se a chave
+de reconciliação com a origem. Intencional?
+
+### COR: quatro lacunas
+
+| # | Slides pedem | Situação | Tamanho |
+|---|---|---|---|
+| **1** | **Dedup interna** — "deixar apenas o último registro" | ❌ **não existe** | pequeno — o CBMRJ já tem, é copiar |
+| **2** | Critério 2: **nome de via tratado** | ❌ usa geografia ≤ 500 m | pequeno — trocar a função |
+| **3** | Critério 3: **bairro** | ❌ não usa | pequeno |
+| **4** | **`LOC_TRATADO`** — normalização completa | ⚠️ 5 de 7 passos, 2 parciais | médio |
+
+> **A dedup interna é a mais irônica:** os slides citam a COR como origem da
+> regra ("Pré-Etapa 2: Tratar duplicidades internas da FONTE COR"), e é
+> justamente ela que não tem. O CBMRJ implementou
+> (`buildDeduplicationMap` + `hashRowContent`).
+
+### O detalhe do item 4
+
+| Passo | Onde | Situação |
 |---|---|---|
-| 1 | Trocar o critério: apontar o `duplicityCheck` da COR para `findSimilarRecord` | pequeno |
-| 2 | Acrescentar o bairro ao critério | pequeno |
-| 3 | Completar o dicionário de abreviações — de 8 para ~40 | médio, é **dado** |
-| 4 | Ampliar os conectores de cruzamento — de 1 para 14 | médio, é **dado** |
-| 5 | Dicionário de vias com mais de um nome | médio, exige **curadoria** |
+| 1. Maiúsculas | `normalizeAddress` | ✅ |
+| 2. Remover acentos | `normalizeAddress` | ✅ |
+| 3. Após vírgula ou 1º traço | importador COR | ✅ |
+| 4. Expandir abreviações | `normalizeAddress` | ⚠️ **8 de ~40** |
+| 5. Espaços duplicados | `normalizeAddress` | ✅ |
+| 6. Tratar cruzamentos | importador COR | ⚠️ **1 conector de 14** |
+| 7. Dicionário de equivalências | — | ❌ |
 
-Os itens 1 e 2 são de poucas linhas. Os 3, 4 e 5 são tabela de configuração, não
-lógica — e é onde os slides gastam a maior parte das páginas.
+Os itens 4, 6 e 7 são **dado, não lógica** — cabem numa tabela de configuração.
+É onde os slides gastam a maior parte das páginas, e o que exige **curadoria**:
+o próprio slide avisa que alias só entra depois de confirmação em fonte oficial.
+
+### Já pronto, sem nada a fazer
+
+- **Todas as ações no match** — data/hora, natureza, elemento atingido, ID da COR
+- **Todas as ações no não match** — 12 regras, implementadas literalmente e
+  comprovadas nos dados (17.871 = 17.871, 5.099 Leve, 358 Pedestre, 100% sem
+  vínculo a veículo)
+- A janela de **±3h**
+
+### Em uma frase
+
+> Na COR, **as ações estão prontas**. Falta a **dedup interna** e trocar o
+> **critério de detecção** de geografia para endereço tratado + bairro.
+
+Os itens 1, 2 e 3 são de poucas linhas cada. O **4 é o trabalho de verdade** — e
+é o mesmo que o CBRJ vai precisar. Vale fazer uma vez, compartilhado.
 
 # 3. O que AINDA falta
 
