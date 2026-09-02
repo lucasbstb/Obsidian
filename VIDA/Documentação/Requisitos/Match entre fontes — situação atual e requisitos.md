@@ -139,7 +139,70 @@ Ids de fonte no domínio: **ISP = 2 · COR = 9 · CBMRJ = 12**.
 
 Falta o **CET** na lista.
 
-## 2.6 Normalização de endereço — parcial
+## 2.6 A regra de match — existem DUAS, uma por fonte
+
+Levantado com precisão em 02/09/2026, lendo `find-similar-record.ts` e
+`incident.service.ts` na `release/1.0.0`.
+
+| Caminho | Checa duplicidade? | Regra | Ação |
+|---|---|---|---|
+| **ISP** (importador) | ❌ não checa | — | é a **fonte primária**, sempre insere |
+| **COR** (importador) | ✅ `duplicityCheck` | ±3h + **geografia ≤ 500 m** | enriquece |
+| **CBRJ** (importador) | ✅ `duplicityCheckCbmrj` | ±3h + **endereço normalizado, Dice ≥ 0,8** | enriquece |
+| **Cadastro manual** | ❌ **não checa mais** | — | insere direto |
+| **Tela de Duplicidades** | ✅ `duplicityCheck` | ±3h + geografia ≤ 500 m | resolução humana |
+
+> **A COR casa por distância; o CBRJ casa por nome de via.** São critérios
+> diferentes para o mesmo problema, e nenhum dos dois usa bairro.
+
+### `duplicityCheck` — usado pela COR
+
+```typescript
+occurredAt BETWEEN (ocorrência - 3h) AND (ocorrência + 3h)
+  AND wasRemoved IN (false, NULL)
+  AND wasDuplicityResolved = false
+→ compareIncidentsByLocation()   // Haversine, mantém os que estão a < 500 m
+```
+
+O raio foi ajustado três vezes ao longo do projeto:
+
+```
+92fc874  inicial ........  100 m
+2547909  integração Mongo  1000 m
+62ef0eb  ajuste corCode ..  500 m   ← atual
+```
+
+Não é código abandonado: é parâmetro que alguém vem calibrando.
+
+### `duplicityCheckCbmrj` — usado pelo CBRJ
+
+Mesma janela de ±3h, mas compara **texto**:
+
+```typescript
+normalizeAddress(input.firstAddress)
+→ para cada candidato: compareTwoStrings(normA, normB) >= 0.8
+```
+
+Três limitações importantes:
+
+1. **Só usa `first_address`.** O `second_address` saiu da comparação — na `main`
+   ele era considerado. Cruzamentos perdem metade da chave
+2. **Não usa bairro**
+3. **Não usa geografia** — mesmo com `geom` preenchido em 100% dos registros
+
+### O cadastro manual deixou de checar
+
+Na `main`, `createIncident` e `updateTrafficIncident` rodavam `duplicityCheck` e,
+ao encontrar, marcavam o novo registro com `hasArchived: true, isDuplicated:
+true` — arquivando-o até um humano resolver.
+
+**Na release essas chamadas não existem mais.** A verificação migrou inteira para
+os importadores.
+
+> Efeito colateral: um sinistro cadastrado pela tela **não é mais confrontado**
+> com o que já existe. Verificar se foi decisão ou perda acidental na reescrita.
+
+## 2.7 Normalização de endereço — parcial
 
 `normalizeAddress()` em `find-similar-record.ts`, que foi **reescrito** na
 release (43 inserções, 56 remoções):
@@ -158,6 +221,181 @@ E a busca por geografia (<100 m) saiu — hoje o `findSimilarRecord` casa por
 endereço normalizado.
 
 ---
+
+# 2b. Conformidade ISP × COR
+
+Análise linha a linha em 02/09/2026, contra a `release/1.0.0`.
+
+## O ISP não precisa de tratamento — ele **é** o formato de referência
+
+```typescript
+firstAddress  = details['logradouro'];
+secondAddress = details['intersecao'];
+reference     = details['ref_numerica'];
+neighborhood  = details['bairro'];
+```
+
+Direto, sem parsing. É a fonte primária: **não faz checagem de duplicidade**,
+sempre insere.
+
+### O importador do ISP da API resolve o bug do script Python
+
+```typescript
+// normalizaion-data-isp.ts
+export const skinColorMapping = {
+  'BRANCA': 1, 'ALBINA': 2, 'PRETA': 3, 'PARDA': 4,
+  'AMARELA': 5, 'INDÍGENA': 6, 'SEM INFORMAÇÃO': 7,
+};
+```
+
+Mapa explícito do vocabulário da planilha para os ids do domínio — e o mesmo para
+`maritalStatusMapping` e `scholarityMapping`.
+
+É exatamente o que falta no `migracao.py`, que usa
+`LOWER(name) LIKE '%{cor}%'` e por isso jogou **todas as 47.760 vítimas** em
+"Não informado". Ver [[Importar a planilha do ISP]].
+
+**Outras duas vantagens do importador da API:**
+
+| | Script Python | Importador da API |
+|---|---|---|
+| `accident_code` | `controle.split("-")[0]` → **1.625 colisões** | `generateIdentificationCode()` → sem colisão |
+| Cor / escolaridade / estado civil | `LIKE`, falha em 100% | mapa explícito |
+| Agrupamento | `groupby("controle")` | `mountGroupIncidents` por `controle` |
+
+> **Conclusão: o `migracao.py` está obsoleto.**
+
+### Importar o ISP pela API — o que saber
+
+| | |
+|---|---|
+| Tela | Importadores → botão "XLSX ISP" |
+| Rota | `POST /api/incident/importer/isp` |
+| Template | `GET /api/incident/importer/template/isp` |
+
+⚠️ **Não há validação de cabeçalho.** O `headersIspFiles` só gera o template; o
+importador lê por nome de coluna, e coluna ausente vira campo vazio.
+
+A `Sinistros_ISP_2022-2025.xlsx` tem 26 das 28 colunas — faltam `evento` e
+`dsc_local_fato`, que entrariam vazios. E o importador espera
+`dsc_titulo_criminal`, que é o nome **novo**: foi feito para esse formato.
+
+⚠️ **É síncrono, sem fila** (COR e CBRJ têm). 14 MB gerando ~38 mil sinistros
+dentro de uma requisição HTTP provavelmente estoura o timeout do nginx (60s
+padrão). Testar com um recorte pequeno antes.
+
+⚠️ **O `controle` não é guardado.** O `accidentCode` é gerado e não vi o
+`controle` ir para o `ispCode` — perde-se a chave que permitiria reconciliar com
+a planilha depois. Confirmar com o Yerlon se é intencional.
+
+---
+
+## COR — as ações estão certas, o critério não
+
+### ✅ Não match: implementado literalmente
+
+```typescript
+for(let i = 0; i < qtdVehicles; i++) {           // vítimas = qtd de veículos
+  victimDTO.name = `Vítima ${i + 1}`;
+
+  if((i === 0) && (severityId === INJURED)) {
+    victimDTO.severityInjuryId = INJURED;         // 1ª lesionada se "com vítima"
+  } else {
+    victimDTO.severityInjuryId = NOT_REPORTED;    // demais NI
+  }
+
+  if((i === 0) && (natureId === HIT_BY_A_CAR)) {
+    victimDTO.kindPersonId = 3;                   // 1ª pedestre se atropelamento
+  }
+}
+```
+
+O `vehicle_code` nunca é preenchido → "não associar vítimas a veículos".
+Confirmado nos dados: **17.871 de 17.871 sem vínculo**.
+
+### ✅ Match: implementado
+
+```typescript
+occurredAt         → ajustar data/horário
+natureId           → ajustar natureza
+affectedElementId  → elemento atingido
+corCode            → adicionar ID da fonte COR
+```
+
+> O próprio slide diz: *"A lógica dos ajustes dos registros em casos de match não
+> muda nada em relação ao que já está implementado"*. Essa parte é **documentação
+> do que existe**, não pedido de mudança.
+
+### 🔴 O critério diverge
+
+| | Slide pede | Código faz |
+|---|---|---|
+| Critério 1 | Time ±3h | ✅ ±3h |
+| Critério 2 | **Nome de via — ISP × COR tratado** | ❌ **geografia ≤ 500 m** |
+| Critério 3* | Nome do bairro | ❌ não usa |
+
+**A COR casa por distância, não por nome de rua.** É a divergência central.
+
+### ⚠️ Uma divergência menor
+
+Os veículos são **substituídos**, não adicionados:
+
+```typescript
+if (vehicles.length > 0) await queryRunner.manager.remove(Vehicle, vehicles);
+...
+await queryRunner.manager.save(Vehicle, newVehicles);
+```
+
+O slide diz "Adicionar veículos". Como ele também diz que o match "não muda
+nada", pode ser comportamento aceito — confirmar com o Caio.
+
+---
+
+## O tratamento de endereço está mais completo do que parecia
+
+O importador da COR já faz parte do trabalho, no momento da importação:
+
+```typescript
+const [streets, others] = row['localizacao'].split(',');   // passo 3: após a vírgula
+if(streets.includes('-')) {
+  firstAddress = streets.slice(0, dashIndex);              // passo 3: após o 1º traço
+  reference    = streets.slice(dashIndex + 1);
+} else {
+  const [firstStreet, secondStreet] = streets.split(' x '); // passo 6: cruzamento
+  firstAddress  = firstStreet;
+  secondAddress = secondStreet;
+}
+```
+
+| Passo do slide | Onde está | Situação |
+|---|---|---|
+| 1. Maiúsculas | `normalizeAddress` | ✅ |
+| 2. Remover acentos | `normalizeAddress` | ✅ |
+| 3. Após vírgula ou 1º traço | **importador COR** | ✅ |
+| 4. Expandir abreviações | `normalizeAddress` | ⚠️ **8 de ~40** |
+| 5. Espaços duplicados | `normalizeAddress` | ✅ |
+| 6. Tratar cruzamentos | **importador COR** | ⚠️ **só ` x `**, de 14 conectores |
+| 7. Dicionário de equivalências | — | ❌ |
+
+> **Mas há uma separação que os slides não preveem.** Os passos 3 e 6 rodam no
+> **importador**, produzindo `first_address`/`second_address`. Os passos 1, 2, 4
+> e 5 rodam no **match**, dentro do `normalizeAddress`. São dois tratamentos
+> distintos; o slide descreve um pipeline só, gerando `LOC_TRATADO`.
+
+---
+
+## O trabalho concreto na COR
+
+| # | Item | Tamanho |
+|---|---|---|
+| 1 | Trocar o critério: apontar o `duplicityCheck` da COR para `findSimilarRecord` | pequeno |
+| 2 | Acrescentar o bairro ao critério | pequeno |
+| 3 | Completar o dicionário de abreviações — de 8 para ~40 | médio, é **dado** |
+| 4 | Ampliar os conectores de cruzamento — de 1 para 14 | médio, é **dado** |
+| 5 | Dicionário de vias com mais de um nome | médio, exige **curadoria** |
+
+Os itens 1 e 2 são de poucas linhas. Os 3, 4 e 5 são tabela de configuração, não
+lógica — e é onde os slides gastam a maior parte das páginas.
 
 # 3. O que AINDA falta
 
@@ -217,31 +455,52 @@ filtro **já existem**. O que falta é a qualidade da chave que alimenta o match
 
 # 5. Perguntas em aberto
 
-**1. O `migracao.py` ainda é o caminho para o ISP?**
-Existe `importer-isp.service.ts` na API, com endpoint e template. Estamos
-rodando um script manual para algo que virou funcionalidade?
+Já respondidas pelo código, e por isso removidas desta lista: o critério de nome
+de via (Dice ≥ 0,8 sobre texto normalizado), a proximidade geográfica (não foi
+removida — virou 500 m e é o critério da COR) e o que roda em produção
+(`release/1.0.0`, `da3e19e`/`2da46ef`).
 
-**2. Qual o critério de "nome de via" — igualdade ou similaridade?**
-O `findSimilarRecord` novo usa `normalizeAddress` + `compareTwoStrings`.
-Confirmar o limiar contra o que o Caio espera.
+O que sobra depende de decisão de negócio ou de conversa com o time.
 
-**3. A proximidade de 100 m foi removida de propósito?**
-Ela existia na `main` e sumiu na release. Foi decisão ou efeito colateral da
-reescrita?
+## Para o Caio
 
-**4. São dois ou três critérios?**
+**1. São dois ou três critérios?**
 O slide diz "os DOIS critérios" mas lista três, com asterisco no bairro. E o
-bairro hoje não é usado.
+**bairro não é usado por nenhuma das duas regras atuais**, embora esteja
+preenchido em 99,9% da base.
 
-**5. Quando a branch do CET entra?**
-`feature/implementation-cet-data-import-VDS-879` está parada desde 28/01/2026,
-enquanto a release avançou até junho. Ainda é integrável?
+**2. COR e CBRJ devem usar o mesmo critério?**
+Hoje a **COR casa por distância (500 m)** e o **CBRJ por nome de via
+(Dice ≥ 0,8)**. Os slides descrevem a mesma regra para as duas. É convergência
+desejada, ou a diferença é proposital?
 
-**6. O que está em produção?**
-A release é de 17/06/2026 e os containers de produção têm imagens de 2–4 meses.
-Confirmar se produção roda a release ou algo anterior.
+**3. Qual o raio correto?**
+O parâmetro já foi 100 m, depois 1000 m, hoje 500 m. Alguém está calibrando sem
+critério documentado.
 
-**7. O `accident_code` colidido afeta o match?**
-Ver [[Importar a planilha do ISP]] — 1.625 códigos repetidos na carga do ISP
-feita pelo script Python. Se o match ou os UPDATEs usarem esse campo, herdam a
-colisão.
+**4. O `second_address` deveria voltar para a comparação?**
+Saiu na reescrita. Em cruzamento, comparar só a primeira via perde metade da
+identidade — e é justamente o que as regras de interseção dos slides pretendem
+estruturar.
+
+## Para o Yerlon
+
+**5. O `migracao.py` ainda é o caminho para o ISP?**
+Existe `importer-isp.service.ts` na API, com endpoint e template. Estamos
+rodando script manual para algo que virou funcionalidade?
+
+**6. O cadastro manual deixar de checar duplicidade foi decisão?**
+Na `main` ele checava e arquivava; na release não checa mais. Intencional ou
+perda na reescrita?
+
+**7. Quando a branch do CET entra?**
+`feature/implementation-cet-data-import-VDS-879` parada desde 28/01/2026,
+enquanto a release avançou até junho. Quanto mais espera, mais caro integrar.
+
+## Técnica, a resolver internamente
+
+**8. O `accident_code` colidido afeta o match?**
+Ver [[Importar a planilha do ISP]] — 1.625 códigos repetidos na carga feita pelo
+script Python. As regras de match atuais **não** usam esse campo, mas os blocos
+de `UPDATE` do script usam. E o horário depende deles: sem hora correta, o
+critério de ±3h compara meia-noite com meia-noite.
