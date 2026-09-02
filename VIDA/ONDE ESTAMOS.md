@@ -62,9 +62,12 @@ Rodando pelo `migracao.py`, bloco a bloco. Roteiro em
 | 1 — Sinistros | 38.592 | — | ✅ |
 | 2 — Vítimas | 47.760 | 1,24 | ✅ |
 | 3 — Vias | 40.539 | 1,05 | ✅ |
-| 4 — Veículos | *rodando* | esperado 1,23 | ⏳ |
+| 4 — Veículos | 47.816 | 1,24 | ✅ |
 | 5 — UPDATE colunas | não rodado | | ⚠️ |
 | 6 — UPDATE horário | não rodado | | ⚠️ |
+
+**Os blocos 1 a 4 fecharam** — as quatro proporções batem com a base
+anterior. A carga de dados está completa; falta só o pós-processamento.
 
 **Os blocos 5 e 6 dependem do `accident_code`**, que tem **1.625 códigos
 colididos** (um deles em 666 sinistros). Rodar como está corrompe. Tirar dump
@@ -105,11 +108,17 @@ Copiar/colar de texto no RDP está bloqueado. Caminhos ainda não testados:
 
 ## Próximos passos, em ordem
 
-### 1. Terminar ou abandonar a carga do `vidadev`
-- [ ] Conferir o bloco 4 quando terminar
-- [ ] Decidir sobre os blocos 5 e 6 (dump antes)
-- [ ] **Ou** abandonar: confirmar com o Yerlon se o `migracao.py` ainda faz
-      sentido dado que existe `importer-isp.service.ts`
+### 1. Decidir sobre os blocos 5 e 6
+- [x] ~~Conferir o bloco 4~~ — 47.816 veículos, razão 1,24 ✅
+- [ ] **Tirar dump antes de qualquer coisa**
+- [ ] Decidir: rodar 5 e 6 sabendo do `accident_code` colidido, ou não rodar
+- [ ] **Ou** abandonar a carga: confirmar com o Yerlon se o `migracao.py` ainda
+      faz sentido dado que existe `importer-isp.service.ts`
+
+> **Enquanto o bloco 6 não rodar, todos os sinistros estão à meia-noite.** Isso
+> agora atrapalha mais do que antes: o critério de match da COR usa janela de
+> ±3h, e numa base assim todo sinistro cai na janela de todos os outros.
+> Testar o importador contra essa carga dá resultado sem sentido.
 
 ### 2. Tirar a planilha da máquina do CET
 Os três caminhos acima.

@@ -288,11 +288,11 @@ O caminho do arquivo passou a apontar para
 | **1** — Sinistros | **38.592** | — | 31.069 | ✅ |
 | **2** — Vítimas | **47.760** | 1,24 | 1,24 | ✅ |
 | **3** — Vias | **40.539** | 1,05 | 1,05 | ✅ |
-| **4** — Veículos | *em execução* | esperado 1,23 | 1,23 | ⏳ |
+| **4** — Veículos | **47.816** | 1,24 | 1,23 | ✅ |
 | **5** — UPDATE colunas | **não rodado** | | | ⚠️ |
 | **6** — UPDATE horário | **não rodado** | | | ⚠️ |
 
-As três proporções batem exatamente com a base anterior — o agrupamento por
+As quatro proporções batem com a base anterior — o agrupamento por
 `controle` funcionou.
 
 **Cobertura:** 2022-01-01 a **2025-12-31**. A base anterior parava em 2025-10-30;

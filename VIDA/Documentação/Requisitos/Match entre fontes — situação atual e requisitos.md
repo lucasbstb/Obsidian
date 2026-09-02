@@ -399,10 +399,22 @@ de reconciliação com a origem. Intencional?
 
 | # | Slides pedem | Situação | Tamanho |
 |---|---|---|---|
-| **1** | **Dedup interna** — "deixar apenas o último registro" | ❌ **não existe** | pequeno — o CBMRJ já tem, é copiar |
-| **2** | Critério 2: **nome de via tratado** | ❌ usa geografia ≤ 500 m | pequeno — trocar a função |
-| **3** | Critério 3: **bairro** | ❌ não usa | pequeno |
+| **1** | **Dedup interna** — "deixar apenas o último registro" | ✅ **feito** (`de73700`) | pequeno |
+| **2** | Critério 2: **nome de via tratado** | ✅ **feito** (`de73700`) | pequeno |
+| **3** | Critério 3: **bairro** | ✅ **feito** (`de73700`) | pequeno |
 | **4** | **`LOC_TRATADO`** — normalização completa | ⚠️ 5 de 7 passos, 2 parciais | médio |
+
+> **Itens 1, 2 e 3 implementados em 02/09/2026**, na branch `lucasdev`. Detalhe
+> e medição de impacto em [[2026-09-02]], seção 8.
+>
+> A dedup ficou por **`Id_ocorrencia`**, não por hash de conteúdo como no CBMRJ:
+> a planilha da COR traz a mesma ocorrência em estágios diferentes, então o
+> conteúdo muda e o hash não pegaria. O bairro passou a usar a **mesma
+> normalização do endereço** — sem isso, 29% dos registros da COR ficariam sem
+> par só por acento e caixa (`MARE` no ISP × `Maré` na COR).
+>
+> ⚠️ **Abriu uma decisão nova.** Em via arterial longa, nome de via + bairro
+> produzem match a mais de 10 km (Av. Brasil tem 58 km). Ver **RF-07** abaixo.
 
 > **A dedup interna é a mais irônica:** os slides citam a COR como origem da
 > regra ("Pré-Etapa 2: Tratar duplicidades internas da FONTE COR"), e é
@@ -485,9 +497,13 @@ filtro **já existem**. O que falta é a qualidade da chave que alimenta o match
 
 ## Match
 
-- **RF-06** — Incluir **bairro** como critério
-- **RF-07** — Definir o papel da proximidade geográfica, que saiu do
-  `findSimilarRecord` na release
+- ~~**RF-06** — Incluir **bairro** como critério~~ ✅ feito em `de73700`
+- **RF-07** — Definir o papel da proximidade geográfica. **Deixou de ser
+  pergunta aberta e virou necessidade medida:** com o critério novo, 12 de 65
+  matches numa amostra ficam acima de 10 km, porque via arterial longa +
+  bairro vazio não seguram nada. Proposta: trava larga de ~2 km, aplicada só
+  quando os dois lados têm coordenada válida — **e 1,6% dos registros da COR
+  não têm** (99 em `0,0`, 5 em Mountain View, CA)
 
 ## Fontes
 
