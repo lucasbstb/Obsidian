@@ -8,8 +8,9 @@
 
 ## O essencial em 10 linhas
 
-1. **Trabalhe na `release/1.0.0`.** A `main` é a versão de **Fortaleza**, 76/89
-   commits atrás. Login verde = errado; azul "Prefeitura Rio" = certo
+1. **Trabalhe na `lucasdev`**, que sai da `release/1.0.0` — e a release é o que
+   roda em produção. A `main` é a versão de **Fortaleza**, 76/89 commits atrás.
+   Login verde = errado; azul "Prefeitura Rio" = certo
 2. **Produção** = `da3e19e` (back) / `2da46ef` (front), 17/06/2026 — e o **local
    está idêntico**
 3. **Dev está 3 meses atrás** e com back e front em branches diferentes
@@ -27,13 +28,27 @@
 ## Ambiente local
 
 ```
-back   C:\Users\Lucas Barbosa\Documents\vida-rio-api   release/1.0.0  da3e19e
-front  C:\Users\Lucas Barbosa\Documents\VIDA-RIO       release/1.0.0  2da46ef
+back   C:\Users\Lucas Barbosa\Documents\vida-rio-api   lucasdev  ←  release/1.0.0 (da3e19e)
+front  C:\Users\Lucas Barbosa\Documents\VIDA-RIO       lucasdev  ←  release/1.0.0 (2da46ef)
 
 npm run dev  nos dois  ·  FortiClient conectado  ·  localhost:3000
 ```
 
 Login em `/`, não em `/login`. Cookie: `vida-web-rio.token`.
+
+### A branch `lucasdev`
+
+Criada em **02/09/2026**, nos dois repositórios, a partir da `release/1.0.0`.
+Existe porque a release **é** produção — mesmo commit, back e front. Nada meu
+vai direto para lá; só por PR.
+
+Primeiro commit: `aea2e77` — o `package-lock.json` reescrito pelo
+`npm install --legacy-peer-deps`.
+
+> ⚠️ **Esse commit não volta para a release.** É artefato do ambiente local: o
+> `typeorm@0.3.20` declara `peerOptional mongodb@^5.8.0` e o projeto usa
+> `mongodb@^7.1.0`, o que quebra o install normal com `ERESOLVE`. Ao abrir PR,
+> deixar o arquivo de fora.
 
 ---
 
