@@ -207,14 +207,40 @@ timeout do nginx.
 
 ---
 
-## O que falta em ISP × COR (resumo)
+## ISP × COR — implementado
 
-**ISP:** nada. É a fonte primária.
+Os quatro itens saíram em 02/09/2026, na `lucasdev`. Os slides do Caio chegaram
+e o documento foi cumprido por inteiro.
 
-**COR:** quatro itens —
-1. Dedup interna ("deixar o último") — não existe; o CBMRJ tem, é copiar
-2. Critério por nome de via — hoje usa geografia 500 m
-3. Critério por bairro — não usa
-4. Normalização completa — 5 de 7 passos, dicionário com 8 de ~40 entradas
+| # | | Commit |
+|---|---|---|
+| 1 | Dedup interna, por **conteúdo** | `3ed331f` |
+| 2 | Critério por nome de via tratado | `4b2dc08` |
+| 3 | Critério de bairro | `de73700` |
+| 4 | `LOC_TRATADO` — 7 passos, 4 dicionários, 14 conectores | `3ed331f` |
 
-As **ações** de match e não-match **já estão prontas** e comprovadas nos dados.
+```
+src/utils/address/
+├── dictionaries.ts        ← os 4 dicionários, como DADO (RF-02)
+├── normalize-location.ts  ← passos 1-5 e 7 + limpeza mecânica
+└── parse-intersection.ts  ← passo 6 e as 7 regras
+```
+
+**Resultado medido:** registros da COR sem par possível no ISP caem de **1.880
+(17,0%) para 327 (3,0%)**.
+
+### Duas coisas para o Caio decidir
+
+**1. Via arterial longa.** Com a regra implementada como o documento define,
+**20 de 65 matches numa amostra ficam acima de 10 km** — `Av Brasil` casando com
+`Av Brasil` numa avenida de 58 km. Não é defeito: é o resultado da regra. Os
+slides não previram isso.
+
+**2. O raio de 500 m** da validação espacial das equivalências condicionadas não
+vem dos slides — foi adotado por ser o único com histórico no projeto.
+
+Perguntas 9 e 10 em
+[[Match entre fontes — situação atual e requisitos]].
+
+> **Não implementei trava geográfica geral.** Os slides listam Time ±3h, nome de
+> via e bairro; geografia só aparece condicionando duas equivalências.

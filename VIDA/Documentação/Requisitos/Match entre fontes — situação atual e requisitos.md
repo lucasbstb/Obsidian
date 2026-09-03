@@ -455,55 +455,134 @@ Os itens 1, 2 e 3 são de poucas linhas cada. O **4 é o trabalho de verdade** �
 
 # 3. O que AINDA falta
 
-Lista real, contra a `release/1.0.0`.
+Atualizado em **02/09/2026**, depois de receber os slides e implementar.
 
 | # | Item | Situação |
 |---|---|---|
-| 1 | **Passo 3** — ajustar tudo após vírgula ou 1º traço | ❌ |
-| 2 | **Passo 6** — tratar cruzamentos | ❌ |
-| 3 | **Passo 7** — dicionário de equivalências (Linha Amarela → Av. Gov. Carlos Lacerda etc.) | ❌ |
-| 4 | **Dicionários completos** — hoje 8 abreviações; os slides trazem ~40 entre vias, títulos e componentes | ⚠️ parcial |
-| 5 | **Parser de cruzamento** — 14 conectores + 7 regras, alimentando `first_address`/`second_address` | ❌ |
-| 6 | **Chave de cruzamento ordenada** (`A x B` = `B x A`) | ❌ |
-| 7 | **`location_raw`** — preservar a frase original | ⚠️ existe `original_address`, verificar se cumpre |
-| 8 | **Critério de bairro** no match | ❌ não usado no `findSimilarRecord` |
+| 1 | **Passo 3** — ajustar tudo após vírgula ou 1º traço | ✅ `3ed331f` |
+| 2 | **Passo 6** — tratar cruzamentos | ✅ `3ed331f` |
+| 3 | **Passo 7** — dicionário de equivalências | ✅ `3ed331f` |
+| 4 | **Dicionários completos** — 4 dicionários, ~60 entradas | ✅ `3ed331f` |
+| 5 | **Parser de cruzamento** — 14 conectores + 7 regras | ✅ `3ed331f` |
+| 6 | **Chave de cruzamento ordenada** (`A x B` = `B x A`) | ✅ `3ed331f` |
+| 7 | **`location_raw`** — preservar a frase original | ✅ `3ed331f` |
+| 8 | **Critério de bairro** no match | ✅ `de73700` |
 | 9 | **CET** — importador, `cet_code` e entrada no filtro | ⏳ em branch separada |
 | 10 | **SMS (Saúde)** — "fonte complementar 4" | ❌ sem etapa detalhada nos slides |
-| 11 | **Limpeza mecânica** — preservar grafia canônica do ISP para exibição | ❌ |
+| 11 | **Limpeza mecânica** — preservar grafia canônica do ISP para exibição | ✅ `3ed331f` |
 
-## O peso disso
+Sobram o **9** e o **10**, que não são tratamento de endereço: um é integrar uma
+branch parada, o outro não tem etapa detalhada nos slides.
 
-Quase tudo que falta é **tratamento de endereço** — os itens 1 a 7. Não é
-coincidência: é a parte dos slides com mais páginas (quatro dicionários, sete
-regras de cruzamento, uma tabela de limpeza mecânica).
+## Onde o código ficou
 
-O motor de match, as colunas de fonte, o enriquecimento, os importadores e o
-filtro **já existem**. O que falta é a qualidade da chave que alimenta o match.
+```
+src/utils/address/
+├── dictionaries.ts        ← os 4 dicionários + os 14 conectores, como DADO
+├── normalize-location.ts  ← passos 1-5 e 7, mais a limpeza mecânica
+└── parse-intersection.ts  ← passo 6 e as 7 regras de interseção
+```
+
+Branch `lucasdev`, commits `3ed331f` e `4b2dc08`.
+
+## Duas contradições dos slides, e como foram resolvidas
+
+**Passo 3 × limpeza mecânica.** O passo 3 manda "ajustar tudo após a vírgula ou
+1º traço". A tabela de limpeza mecânica diz que o hífen semântico de
+`Rio–Niterói` e `Grajaú–Jacarepaguá` **não pode ser corte automático**. Lidos
+literalmente, se contradizem.
+
+> **Resolvido cortando só traço cercado de espaço.** É o que reconcilia os dois —
+> e é exatamente o bug que produziu os 15 registros `PONTE RIO` na base, do
+> importador antigo cortando "Ponte Rio-Niterói" no hífen.
+
+**Chave da dedup interna.** O slide diz "deixar apenas o último registro" sem
+dizer o último *de quê*. O exemplo mostra `COR2501810`, `COR2501811` e
+`COR2501813` sendo deduplicados — **os `Id_ocorrencia` são diferentes**.
+
+> **A chave é o conteúdo**, não o id: data + `pop` + `titulo` + `localizacao` +
+> `bairro` + lat + long. Da `abertura` entra só a data, porque a hora varia entre
+> as linhas da mesma ocorrência — incluí-la faria nada colapsar, e usar a
+> `abertura` inteira faria ocorrências de dias diferentes se fundirem.
+>
+> Primeiro implementei pelo `Id_ocorrencia` e estava errado. Corrigido em
+> `3ed331f`.
 
 ---
 
 # 4. Requisitos derivados
 
-## Normalização — o grosso do trabalho
+## Normalização — todos implementados em 02/09/2026
 
-- **RF-01** — Completar `normalizeAddress()` com os passos 3, 6 e 7
-- **RF-02** — Trazer os 4 dicionários como **dado**, não como array no código,
-  para permitir curadoria sem deploy
-- **RF-03** — Parser de cruzamento: 14 conectores, 7 regras, alimentando
-  `first_address` e `second_address`
-- **RF-04** — Chave de cruzamento ordenada
-- **RF-05** — Preservar a grafia canônica do ISP para exibição, separada da chave
-  de busca
+- ~~**RF-01** — passos 3, 6 e 7~~ ✅ `3ed331f`
+- ~~**RF-02** — dicionários como **dado**, para curadoria sem deploy~~ ✅ `3ed331f`
+- ~~**RF-03** — parser de cruzamento: 14 conectores, 7 regras~~ ✅ `3ed331f`
+- ~~**RF-04** — chave de cruzamento ordenada~~ ✅ `3ed331f`
+- ~~**RF-05** — preservar a grafia original, separada da chave de busca~~ ✅ `3ed331f`
+
+> O `original_address` estava **vazio nos 11.180 registros da COR** porque o
+> `mapCreateTrafficIncidentDtoToEntity` fixava `originalAddress = null` e
+> `hasIntersection = false`. Os dois passaram a vir do DTO.
 
 ## Match
 
-- ~~**RF-06** — Incluir **bairro** como critério~~ ✅ feito em `de73700`
-- **RF-07** — Definir o papel da proximidade geográfica. **Deixou de ser
-  pergunta aberta e virou necessidade medida:** com o critério novo, 12 de 65
-  matches numa amostra ficam acima de 10 km, porque via arterial longa +
-  bairro vazio não seguram nada. Proposta: trava larga de ~2 km, aplicada só
-  quando os dois lados têm coordenada válida — **e 1,6% dos registros da COR
-  não têm** (99 em `0,0`, 5 em Mountain View, CA)
+- ~~**RF-06** — bairro como critério~~ ✅ `de73700`
+- **RF-07** — proximidade geográfica: **feito no escopo que os slides pedem**
+  (`4b2dc08`), que é menor do que a proposta anterior deste documento.
+
+### O que os slides autorizam em geografia
+
+| Onde | Texto |
+|---|---|
+| Transolímpica | "**Exigir coordenada ou segmento**; não aplicar como equivalência global" |
+| Autoestrada Grajaú | "**Exigir validação espacial**" |
+| Critérios de match (slides 11 e 12) | Time ±3h · Nome de via · Nome do bairro |
+
+Geografia **não é critério de match** nos slides. Ela aparece só condicionando
+duas entradas do dicionário de equivalências. Foi assim que ficou: quando o nome
+direto não casa, tenta a identidade condicionada e **só aceita se as duas
+coordenadas existirem e estiverem a menos de 500 m**. Sem coordenada, não aplica.
+
+> O raio de **500 m não vem dos slides**. Adotado por ser o único parâmetro
+> geográfico com histórico no projeto (já foi 100 m, 1000 m, hoje 500 m).
+> **Confirmar com o Caio.**
+
+### ⚠️ O que a medição mostra, e que os slides não previram
+
+Numa amostra de 500 sinistros da COR, o critério dos slides produz 65 matches.
+A distribuição das distâncias:
+
+| <1km | 1-2km | 2-5km | 5-10km | **>10km** |
+|---|---|---|---|---|
+| 19 | 16 | 18 | 2 | **20** |
+
+Os 20 acima de 10 km são casos assim:
+
+```
+Av Brasil | (bairro vazio)  ↔  AVENIDA BRASIL | VILA MILITAR      10.503 m
+```
+
+**A Avenida Brasil tem 58 km.** Dois sinistros nela, com 3h de janela e 10 km de
+distância, quase certamente não são o mesmo evento.
+
+> Isso **não é defeito da implementação** — é o resultado correto da regra como o
+> documento a define. Em via arterial longa, nome de via + bairro não bastam, e
+> quando o bairro vem vazio some a única coisa que segurava.
+>
+> **Decisão do Caio.** Uma trava geográfica geral resolveria, mas não está nos
+> slides, e por isso não foi feita. Ver pergunta 9.
+
+### O que ainda não casa, e por quê
+
+Depois do pipeline completo, registros da COR sem nenhum par possível no ISP
+caem de **1.880 (17,0%) para 327 (3,0%)**. Do que sobra:
+
+| Via | Registros | Por quê |
+|---|---|---|
+| `AUTOESTRADA GRAJAU` | 45 | equivalência condicionada — aguarda validação espacial |
+| `ELEVADO ENG. RUFINO DE A. PIZARRO` | 34 | `A.` → ALMEIDA não está em nenhum dicionário do slide |
+| `ESTRADA GRAJAU/JPA` | 29 | equivalência condicionada |
+| `PONTE RIO` | 15 | dano do importador antigo, que cortava "Ponte Rio-Niterói" no hífen |
 
 ## Fontes
 
@@ -536,7 +615,31 @@ desejada, ou a diferença é proposital?
 
 **3. Qual o raio correto?**
 O parâmetro já foi 100 m, depois 1000 m, hoje 500 m. Alguém está calibrando sem
-critério documentado.
+critério documentado. E agora ele reaparece na validação espacial das
+equivalências condicionadas, onde os slides pedem "exigir coordenada" mas não
+dizem quanto.
+
+**9. Via arterial longa — o critério dos slides basta?** *(nova, 02/09/2026)*
+Implementado exatamente como o documento define, **20 de 65 matches numa amostra
+ficam acima de 10 km** — `Av Brasil` casando com `Av Brasil` numa avenida de
+58 km. Não é defeito da implementação; é o resultado da regra. Os slides não
+tratam vias arteriais longas.
+
+Três saídas possíveis, e a escolha é dele:
+
+| | O que muda |
+|---|---|
+| Trava geográfica geral | reprova acima de um raio, quando há coordenada dos dois lados |
+| Bairro obrigatório | resolve o caso de bairro vazio, mas perde match legítimo |
+| Nada | aceita o falso positivo, com resolução humana na tela de Duplicidades |
+
+> A terceira depende da tela de Duplicidades voltar a resolver — hoje as três
+> rotas de resolução estão comentadas no backend.
+
+**10. O `A.` de `ELEVADO ENG. RUFINO DE A. PIZARRO`.** *(nova)*
+São 34 registros. O ISP escreve `ALMEIDA` por extenso. `A.` não está em nenhum
+dos quatro dicionários, e expandir inicial solta é perigoso. Entra como
+equivalência de via, ou fica assim?
 
 **4. O `second_address` deveria voltar para a comparação?**
 Saiu na reescrita. Em cruzamento, comparar só a primeira via perde metade da
