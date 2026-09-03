@@ -69,9 +69,23 @@ Rodando pelo `migracao.py`, bloco a bloco. Roteiro em
 **Os blocos 1 a 4 fecharam** — as quatro proporções batem com a base
 anterior. A carga de dados está completa; falta só o pós-processamento.
 
-**Os blocos 5 e 6 dependem do `accident_code`**, que tem **1.625 códigos
-colididos** (um deles em 666 sinistros). Rodar como está corrompe. Tirar dump
-antes de decidir.
+**Os blocos 5 e 6 dependem do `accident_code`**, que colide. Medido em
+02/09/2026, sobre os 38.592 sinistros carregados:
+
+| | |
+|---|---|
+| **91** | códigos que colidem (o maior deles em 666 sinistros) |
+| **1.716** | sinistros envolvidos — **4,4% da base** |
+| 1.625 | linhas excedentes (`1.716 − 91`, e também `38.592 − 36.967`) |
+
+> **Isso libera o bloco 6.** Hoje **100%** da base está à meia-noite; depois dele,
+> 95,6% fica com horário certo. E o `occurred_at::date` torna o `UPDATE`
+> idempotente — corrigido o `accident_code` depois, basta rodar de novo e os
+> 1.716 se acertam. Dump antes, mesmo assim.
+
+O **bloco 5 não roda como está**: a linha 683 referencia `incidente`, variável do
+bloco 4, que deixa de existir quando se comenta o bloco 4. Ver
+[[Importar a planilha do ISP]].
 
 ### Problemas conhecidos dessa carga
 

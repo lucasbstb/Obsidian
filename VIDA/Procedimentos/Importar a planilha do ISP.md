@@ -381,7 +381,7 @@ primeiro segmento é um carimbo de tempo único (`20251231111430`); em outra par
 total      38.592
 distintos  36.967
            ──────
-           1.625 códigos repetidos
+           1.625 linhas excedentes
 
 accident_code  qtd   pri          ult
 202207         666   2022-01-01   2022-08-02

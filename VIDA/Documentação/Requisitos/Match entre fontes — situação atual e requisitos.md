@@ -259,7 +259,7 @@ Mapa explícito do vocabulário da planilha para os ids do domínio — e o mesm
 
 | | Script Python | Importador da API |
 |---|---|---|
-| `accident_code` | `controle.split("-")[0]` → **1.625 colisões** | `generateIdentificationCode()` → sem colisão |
+| `accident_code` | `controle.split("-")[0]` → **91 códigos colididos, 1.716 sinistros (4,4%)** | `generateIdentificationCode()` → sem colisão |
 | Cor / escolaridade / estado civil | `LIKE`, falha em 100% | mapa explícito |
 | Agrupamento | `groupby("controle")` | `mountGroupIncidents` por `controle` |
 
@@ -560,7 +560,8 @@ enquanto a release avançou até junho. Quanto mais espera, mais caro integrar.
 ## Técnica, a resolver internamente
 
 **8. O `accident_code` colidido afeta o match?**
-Ver [[Importar a planilha do ISP]] — 1.625 códigos repetidos na carga feita pelo
-script Python. As regras de match atuais **não** usam esse campo, mas os blocos
-de `UPDATE` do script usam. E o horário depende deles: sem hora correta, o
-critério de ±3h compara meia-noite com meia-noite.
+Ver [[Importar a planilha do ISP]] — **91 códigos colididos**, atingindo **1.716
+dos 38.592 sinistros (4,4%)** na carga feita pelo script Python. As regras de
+match atuais **não** usam esse campo, mas os blocos de `UPDATE` do script usam.
+E o horário depende deles: sem hora correta, o critério de ±3h compara
+meia-noite com meia-noite.
