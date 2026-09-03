@@ -63,11 +63,46 @@ Rodando pelo `migracao.py`, bloco a bloco. Roteiro em
 | 2 — Vítimas | 47.760 | 1,24 | ✅ |
 | 3 — Vias | 40.539 | 1,05 | ✅ |
 | 4 — Veículos | 47.816 | 1,24 | ✅ |
-| 5 — UPDATE colunas | não rodado | | ⚠️ |
-| 6 — UPDATE horário | não rodado | | ⚠️ |
+| 5 — UPDATE colunas | **adiado** — bug na linha 683 | | ⚠️ |
+| 6 — UPDATE horário | **rodando** (02/09, fim do dia) | | ⏳ |
 
 **Os blocos 1 a 4 fecharam** — as quatro proporções batem com a base
-anterior. A carga de dados está completa; falta só o pós-processamento.
+anterior.
+
+### Estado do bloco 6 — retomar por aqui
+
+O teste com o `break` **passou**: o sinistro `00049681` saiu de meia-noite para
+`2022-03-11 11:00:00+00`, sem virar `NULL`. Isso confirmou o que faltava — que
+`atualizar_horario_registros()` devolve hora de verdade.
+
+O `break` foi comentado e a rodada completa está em execução. **Não leva
+`TRUNCATE`**: é `UPDATE`, não `INSERT`, e o `occurred_at::date` o torna
+idempotente — o registro de teste é só reescrito com o mesmo valor.
+
+**Quando terminar, rodar:**
+
+```powershell
+docker exec db-vida-cet-dev psql -U admin -d vidadev -c "select count(*) filter (where occurred_at::time='00:00') meianoite, count(*) filter (where occurred_at is null) nulo, count(*) total from incident_trafficincident"
+```
+
+| Coluna | Esperado |
+|---|---|
+| `meianoite` | cair para perto de zero |
+| `nulo` | **zero** |
+| `total` | 38.592 |
+
+> ⚠️ A coluna `nulo` é a que importa. O teste cobriu um sinistro que **tinha**
+> hora na planilha. Se `atualizar_horario_registros()` devolver `None` para os
+> que **não** têm, o `make_interval(hours => NULL)` anula o `occurred_at` — e aí
+> a saída é restaurar do dump, porque `occurred_at::date` sobre `NULL` continua
+> `NULL`.
+
+### O bloco 5 fica pendente
+
+A linha 683 passa `incidente`, variável do bloco 4, que deixa de existir quando
+se comenta o bloco 4 — `NameError`. Três saídas, em
+[[Importar a planilha do ISP]]. Não bloqueia nada; a parte útil dele é a
+severidade da lesão, que usa `WHERE name` e nem passa pelo `accident_code`.
 
 **Os blocos 5 e 6 dependem do `accident_code`**, que colide. Medido em
 02/09/2026, sobre os 38.592 sinistros carregados:
