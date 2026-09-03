@@ -320,8 +320,8 @@ O caminho do arquivo passou a apontar para
 | **2** — Vítimas | **47.760** | 1,24 | 1,24 | ✅ |
 | **3** — Vias | **40.539** | 1,05 | 1,05 | ✅ |
 | **4** — Veículos | **47.816** | 1,24 | 1,23 | ✅ |
-| **5** — UPDATE colunas | **não rodado** | | | ⚠️ |
-| **6** — UPDATE horário | **não rodado** | | | ⚠️ |
+| **5** — UPDATE colunas | **adiado** — bug na linha 683 | — | — | ⚠️ |
+| **6** — UPDATE horário | **37.680 com hora**, 912 à meia-noite, 0 nulos | — | — | ✅ |
 
 As quatro proporções batem com a base anterior — o agrupamento por
 `controle` funcionou.
@@ -575,3 +575,33 @@ O corpo de **`atualizar_horario_registros()`** (linha 622). É de lá que sai a
 hora. **Se ela devolver `None` quando a planilha não traz hora, o
 `make_interval(hours => NULL)` anula o `occurred_at` inteiro.** Abrir antes de
 soltar nos 38 mil — e usar o break da linha 693 para testar com um sinistro só.
+
+---
+
+## Bloco 6 — resultado da execução de 02/09/2026
+
+```
+meianoite    912       2,4%   ← eram 38.592 (100%)
+nulo           0
+total     38.592              ← inalterado: UPDATE, não INSERT
+```
+
+**O teste com o `break` foi o que valeu.** O sinistro `00049681` saiu de
+meia-noite para `2022-03-11 11:00:00+00` sem virar `NULL` — confirmando que
+`atualizar_horario_registros()` devolve hora de verdade, que era o que não dava
+para saber lendo só o `main()`.
+
+A rodada completa não levou `TRUNCATE`, e não deveria mesmo: é `UPDATE`, e
+truncar ali apagaria os 38.592 sinistros.
+
+Os **912 que seguem à meia-noite** são os sinistros sem hora na planilha. A base
+do Proxmox tem 733 (1,7%) na mesma situação — mesma ordem de grandeza.
+
+> **O `nulo = 0` era o que importava.** Se a função devolvesse `None` para os
+> sinistros sem hora, o `make_interval(hours => NULL)` anularia o `occurred_at`,
+> e não haveria conserto rodando de novo — `occurred_at::date` sobre `NULL`
+> continua `NULL`. A saída seria restaurar o dump.
+
+**Efeito colateral que interessa:** a regra de match da COR usa janela de ±3h.
+Com a base inteira à meia-noite, todo sinistro caía na janela de todos os
+outros. Agora dá para testar o importador contra essa carga.

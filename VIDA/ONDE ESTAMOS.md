@@ -64,38 +64,30 @@ Rodando pelo `migracao.py`, bloco a bloco. Roteiro em
 | 3 — Vias | 40.539 | 1,05 | ✅ |
 | 4 — Veículos | 47.816 | 1,24 | ✅ |
 | 5 — UPDATE colunas | **adiado** — bug na linha 683 | | ⚠️ |
-| 6 — UPDATE horário | **rodando** (02/09, fim do dia) | | ⏳ |
+| 6 — UPDATE horário | **37.680 sinistros com hora** | | ✅ |
 
-**Os blocos 1 a 4 fecharam** — as quatro proporções batem com a base
-anterior.
+**A carga do `vidadev` está completa.** Só o bloco 5 ficou de fora, e ele não
+bloqueia nada.
 
-### Estado do bloco 6 — retomar por aqui
+### O resultado do bloco 6
 
-O teste com o `break` **passou**: o sinistro `00049681` saiu de meia-noite para
-`2022-03-11 11:00:00+00`, sem virar `NULL`. Isso confirmou o que faltava — que
-`atualizar_horario_registros()` devolve hora de verdade.
-
-O `break` foi comentado e a rodada completa está em execução. **Não leva
-`TRUNCATE`**: é `UPDATE`, não `INSERT`, e o `occurred_at::date` o torna
-idempotente — o registro de teste é só reescrito com o mesmo valor.
-
-**Quando terminar, rodar:**
-
-```powershell
-docker exec db-vida-cet-dev psql -U admin -d vidadev -c "select count(*) filter (where occurred_at::time='00:00') meianoite, count(*) filter (where occurred_at is null) nulo, count(*) total from incident_trafficincident"
+```
+meianoite    912       2,4%   ← eram 38.592 (100%)
+nulo           0              ← o risco que não se materializou
+total     38.592              ← inalterado: foi UPDATE, não INSERT
 ```
 
-| Coluna | Esperado |
-|---|---|
-| `meianoite` | cair para perto de zero |
-| `nulo` | **zero** |
-| `total` | 38.592 |
+O teste com `break` tinha passado (`00049681` → `2022-03-11 11:00:00+00`), e a
+rodada completa confirmou: **nenhum `occurred_at` virou `NULL`**. Era o único
+caso sem volta, porque `occurred_at::date` sobre `NULL` continua `NULL` e a
+saída seria restaurar o dump.
 
-> ⚠️ A coluna `nulo` é a que importa. O teste cobriu um sinistro que **tinha**
-> hora na planilha. Se `atualizar_horario_registros()` devolver `None` para os
-> que **não** têm, o `make_interval(hours => NULL)` anula o `occurred_at` — e aí
-> a saída é restaurar do dump, porque `occurred_at::date` sobre `NULL` continua
-> `NULL`.
+Os **912 que seguem à meia-noite** são os sinistros sem hora na planilha. Bate
+com a base do Proxmox, que tem 733 (1,7%) na mesma situação.
+
+> **Isso destrava o teste do match.** A regra da COR usa janela de ±3h; com a
+> base inteira à meia-noite, todo sinistro caía na janela de todos os outros e
+> qualquer teste dava resultado sem sentido. Agora não mais.
 
 ### O bloco 5 fica pendente
 
