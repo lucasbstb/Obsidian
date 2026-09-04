@@ -320,7 +320,7 @@ O caminho do arquivo passou a apontar para
 | **2** — Vítimas | **47.760** | 1,24 | 1,24 | ✅ |
 | **3** — Vias | **40.539** | 1,05 | 1,05 | ✅ |
 | **4** — Veículos | **47.816** | 1,24 | 1,23 | ✅ |
-| **5** — UPDATE colunas | **adiado** — bug na linha 683 | — | — | ⚠️ |
+| **5** — UPDATE colunas | **262 vítimas corrigidas para Fatal** (linha 683 fora) | — | — | ✅ |
 | **6** — UPDATE horário | **37.680 com hora**, 912 à meia-noite, 0 nulos | — | — | ✅ |
 
 As quatro proporções batem com a base anterior — o agrupamento por
@@ -605,3 +605,92 @@ do Proxmox tem 733 (1,7%) na mesma situação — mesma ordem de grandeza.
 **Efeito colateral que interessa:** a regra de match da COR usa janela de ±3h.
 Com a base inteira à meia-noite, todo sinistro caía na janela de todos os
 outros. Agora dá para testar o importador contra essa carga.
+
+---
+
+## Bloco 5 — resultado da execução de 02/09/2026
+
+Rodado **sem a linha 683**, que fica comentada. Ver abaixo por quê.
+
+```
+antes:   4 (Grave) → 45.487    5 (Fatal) → 2.273
+depois:  4 (Grave) → 45.225    5 (Fatal) → 2.535
+                               ────────
+                               262 vítimas passaram de Grave para Fatal
+```
+
+A conta fecha nos dois lados. **O bloco 5 identificou 262 óbitos que o bloco 2
+não tinha pegado** — o `alterando_valor_colunas_id()` deve ler um campo que o
+insert original não usa. Vale rodar por isso.
+
+### A linha 683 não roda, e não é só o nome da variável
+
+Trocar `incidente` por `detalhes_incidente` resolve o `NameError` e revela o
+problema de verdade:
+
+```
+line 683, in main
+    inserir_incident(detalhes_incidente, query_update_incident)
+line 19, in inserir_incident
+    cursor_destino.execute(f"{query}", registros)
+TypeError: not all arguments converted during string formatting
+```
+
+O `inserir_incident` espera uma lista de tuplas `(description, accident_code)`.
+O `detalhes_incidente` é o `grupo.iloc[0]` — uma Series do pandas com dezenas de
+colunas. O psycopg2 recebe muito mais valores do que os dois `%s` da query.
+
+> **Falta a função de preparo.** Todo o resto do script passa por uma; o `victim`
+> da linha 679 passa pelo `alterando_valor_colunas_id`. A 683 não passa por nada,
+> e nenhuma das funções que aparecem no `main()` parece ser a que falta.
+>
+> Assunto para o Yerlon. Não bloqueia nada — o `description` é o campo menos
+> crítico, e a 683 cairia nos 1.716 códigos colididos de qualquer forma.
+
+**Nada foi gravado quando estourou:** o erro veio no `execute` e o script saiu
+sem commit. Conferido — a distribuição de severidade ficou intacta.
+
+### 🔴 O achado que importa: "Grave" é um default errado
+
+O domínio de severidade da **vítima** (`incident_severityinjuryincident`):
+
+```
+1 Ileso · 2 Leve · 3 Moderado · 4 Grave · 5 Fatal · 6 Não informado
+```
+
+Depois de todos os blocos, as vítimas do ISP têm **só dois valores**: 45.225 em
+Grave e 2.535 em Fatal. Nenhum Ileso, Leve ou Moderado.
+
+A planilha do ISP tem a coluna **`falecido`**, sim/não. **Não tem coluna de grau
+de lesão.** Então o script só consegue decidir entre morreu e não morreu — e o
+"não morreu" está sendo gravado como **id 4, Grave**.
+
+O valor correto seria o **id 6, "Não informado"**, que existe justamente para
+isso e é o que o importador da COR usa (12.772 registros).
+
+**E não é só aqui.** O banco de dev do Proxmox, com a carga de outubro:
+
+| | Vítimas do ISP |
+|---|---|
+| Grave | **36.395** |
+| Fatal | 2.013 |
+| Leve / Não informado | 296 / 135 — vieram da COR, não do ISP |
+
+Mesmo padrão de dois valores. **Está em produção.**
+
+> **Por que isso importa:** marcar 45 mil pessoas como "Grave" infla toda
+> estatística de gravidade da plataforma. Num sistema de segurança viária, é
+> erro que aparece em relatório.
+>
+> O conserto é um `UPDATE` trocando 4 por 6 nas vítimas não fatais do ISP. Mas é
+> **decisão de negócio**: alguém precisa confirmar que "sem informação" é a
+> leitura certa, e não que o ISP só registra casos graves. Pergunta para o Caio.
+
+### Os dois blocos que se pulam — conferir, não confiar
+
+```powershell
+docker exec db-vida-cet-dev psql -U admin -d vidadev -c "select (select count(*) from neighborhood) bairros, (select count(*) from incident_victim_skin_color) cor, (select count(*) from incident_victim_scholarity) escol, (select count(*) from incident_victim_marital_status) civil"
+```
+
+Esperado: `bairros = 167` e as outras três com poucas linhas. Zeradas significa
+que as listas complementares precisam rodar.

@@ -63,11 +63,30 @@ Rodando pelo `migracao.py`, bloco a bloco. Roteiro em
 | 2 — Vítimas | 47.760 | 1,24 | ✅ |
 | 3 — Vias | 40.539 | 1,05 | ✅ |
 | 4 — Veículos | 47.816 | 1,24 | ✅ |
-| 5 — UPDATE colunas | **adiado** — bug na linha 683 | | ⚠️ |
+| 5 — UPDATE colunas | **262 vítimas corrigidas para Fatal** | | ✅ |
 | 6 — UPDATE horário | **37.680 sinistros com hora** | | ✅ |
 
-**A carga do `vidadev` está completa.** Só o bloco 5 ficou de fora, e ele não
-bloqueia nada.
+**A carga do `vidadev` está completa.** Todos os blocos rodaram; os de bairros e
+listas complementares são pulados de propósito.
+
+### 🔴 Achado: "Grave" é um default errado, e está em produção
+
+Depois de todos os blocos, as vítimas do ISP têm **só dois valores** de
+severidade: **45.225 em Grave** e 2.535 em Fatal. Nenhum Ileso, Leve ou Moderado.
+
+A planilha do ISP tem `falecido` (sim/não) e **nenhuma coluna de grau de lesão**.
+O script decide só entre morreu e não morreu — e grava "não morreu" como
+**id 4, Grave**. O correto seria **id 6, "Não informado"**, que é o que o
+importador da COR usa.
+
+O banco do Proxmox tem o mesmo padrão: **36.395 vítimas do ISP em Grave**.
+
+> Marcar 45 mil pessoas como "Grave" infla toda estatística de gravidade da
+> plataforma. O conserto é um `UPDATE` de 4 para 6, mas é **decisão de negócio** —
+> pergunta para o Caio. Detalhe em [[Importar a planilha do ISP]].
+
+**Pendência da carga:** a linha 683 (`description`) não roda — falta uma função
+de preparo que não existe no script. Assunto para o Yerlon, não bloqueia nada.
 
 ### O resultado do bloco 6
 
