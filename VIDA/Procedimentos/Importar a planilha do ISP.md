@@ -694,3 +694,22 @@ docker exec db-vida-cet-dev psql -U admin -d vidadev -c "select (select count(*)
 
 Esperado: `bairros = 167` e as outras três com poucas linhas. Zeradas significa
 que as listas complementares precisam rodar.
+
+Conferido em 02/09/2026:
+
+```
+bairros  167     cor  7     escol  14     civil  10
+```
+
+Os quatro batem com os defaults do importador da COR
+(`importer-cet.service.ts`):
+
+```typescript
+SCHOLARITY_ID = 14 · SKIN_COLOR_ID = 7 · MARITAL_STATUS_ID = 10
+RESIDENTIAL_NEIGHBORHOOD_ID = 167
+```
+
+> **O padrão é "a última linha de cada domínio é o Não informado"**, e é para lá
+> que o importador manda o que não sabe. Isso é mais uma razão para nunca rodar
+> os blocos de bairros e listas complementares: além de duplicar, eles empurram
+> o "Não informado" para outro id e quebram esses defaults silenciosamente.
